@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agendamento</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+:root{--bg:#fdf3f4;--card:#fff;--ink:#4a2c35;--soft:#9a7580;--rose:#d9738a;--rose-d:#b9506a;--blush:#f8dde2;--sage:#8fae9a;--line:#f0d5da}
+@media (prefers-color-scheme:dark){:root{--bg:#2a1a1f;--card:#38232a;--ink:#fbe9ed;--soft:#c9a2ad;--rose:#e58aa0;--rose-d:#f0a3b5;--blush:#4d2f38;--line:#5a3a44}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 'Nunito Sans',system-ui,sans-serif}
+h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:600;margin:0}
+.wrap{max-width:720px;margin:0 auto;padding:24px 16px 64px}
+header{text-align:center;padding:32px 0 20px}
+header h1{font-size:clamp(2rem,7vw,3rem);color:var(--rose-d)}
+header p{color:var(--soft);margin:6px 0 0}
+.tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 0 12px}
+.tab{flex:none;border:1.5px solid var(--line);background:var(--card);color:var(--ink);padding:10px 18px;border-radius:999px;font:inherit;font-weight:600;cursor:pointer}
+.tab small{display:block;font-weight:400;color:var(--soft);font-size:.75rem}
+.tab[aria-selected=true]{background:var(--rose);border-color:var(--rose);color:#fff}
+.tab[aria-selected=true] small{color:#ffeef1}
+.card{background:var(--card);border-radius:22px;padding:22px;margin-top:14px;box-shadow:0 8px 30px rgba(217,115,138,.12)}
+.card h2{font-size:1.25rem;margin-bottom:12px}
+.opt{display:flex;justify-content:space-between;gap:12px;padding:12px 14px;border:1.5px solid var(--line);border-radius:14px;margin-bottom:8px;cursor:pointer}
+.opt:has(input:checked){border-color:var(--rose);background:var(--blush)}
+.opt input{position:absolute;opacity:0}
+.opt:has(input:focus-visible),.slot:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--rose);outline-offset:2px}
+.price{color:var(--rose-d);font-weight:700;white-space:nowrap}
+input[type=text],input[type=tel],input[type=date],input[type=email],input[type=password],input[type=time],input[type=number],select{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font:inherit;margin-bottom:10px}
+label.f{display:block;font-size:.85rem;color:var(--soft);margin-bottom:4px}
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px}
+.slot{padding:10px 0;border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;font:inherit;font-weight:600;cursor:pointer}
+.slot[aria-pressed=true]{background:var(--rose);border-color:var(--rose);color:#fff}
+.slot:disabled{opacity:.35;text-decoration:line-through;cursor:not-allowed}
+.btn{display:inline-block;width:100%;background:var(--rose-d);color:#fff;border:0;padding:14px 20px;border-radius:14px;font:inherit;font-weight:700;cursor:pointer;margin-top:6px}
+.btn.sm{width:auto;padding:8px 14px;margin:0;font-size:.85rem}
+.btn.ghost{background:transparent;color:var(--rose-d);border:1.5px solid var(--rose)}
+.btn.ok{background:var(--sage)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row>*{flex:1;min-width:120px}
+.row>.btn{flex:none}
+.muted{color:var(--soft);font-size:.9rem}
+.msg{padding:12px 14px;border-radius:12px;background:var(--blush);margin-top:10px}
+.appt{padding:12px 0;border-bottom:1px solid var(--line)}
+.tag{font-size:.75rem;padding:2px 10px;border-radius:99px;background:var(--blush);color:var(--rose-d);font-weight:700}
+.tag.confirmado{background:#dcebe1;color:#3d6b52}.tag.cancelado{background:#eee;color:#777}
+footer{text-align:center;margin-top:36px}
+footer button{background:none;border:0;color:var(--soft);font:inherit;cursor:pointer;text-decoration:underline}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ====== CONFIGURAÇÃO: cole aqui os dados do seu projeto Supabase ====== -->
+<script>
+const SUPABASE_URL = 'COLE_AQUI_A_URL_DO_PROJETO';
+const SUPABASE_KEY = 'COLE_AQUI_A_CHAVE_ANON_PUBLIC';
+</script>
+
+<header><h1 id="salonName">…</h1><p id="tagline"></p></header>
+
+<main id="client">
+  <div class="tabs" id="tabs" role="tablist" aria-label="Profissionais"></div>
+  <div id="booking" hidden>
+    <div class="card"><h2>1. Escolha o serviço</h2><div id="services"></div></div>
+    <div class="card"><h2>2. Dia e horário</h2>
+      <input type="date" id="date" aria-label="Data">
+      <div class="slots" id="slots"></div>
+    </div>
+    <div class="card"><h2>3. Seus dados</h2>
+      <label class="f" for="cname">Seu nome</label><input type="text" id="cname" autocomplete="name">
+      <label class="f" for="cphone">Seu WhatsApp (com DDD)</label><input type="tel" id="cphone" autocomplete="tel" placeholder="19 99999-9999">
+      <button class="btn" id="send">Enviar pelo WhatsApp</button>
+      <div class="msg" id="clientMsg" hidden></div>
+    </div>
+  </div>
+  <p class="muted" id="empty" hidden>Nenhuma profissional cadastrada ainda.</p>
+</main>
+
+<section id="admin" hidden>
+  <div class="card"><h2>Dados do salão</h2>
+    <label class="f" for="sName">Nome</label><input type="text" id="sName">
+    <label class="f" for="sTag">Frase de boas-vindas</label><input type="text" id="sTag">
+    <label class="f" for="sWa">WhatsApp do salão (55 + DDD + número)</label><input type="tel" id="sWa">
+    <div class="row"><div><label class="f" for="sOpen">Abre</label><input type="time" id="sOpen"></div><div><label class="f" for="sClose">Fecha</label><input type="time" id="sClose"></div></div>
+    <button class="btn" id="saveSettings">Salvar</button>
+  </div>
+  <div class="card"><h2>Profissionais e serviços</h2><div id="adminPros"></div>
+    <div class="row"><input type="text" id="nPro" placeholder="Nova aba (ex.: Manicure)"><input type="text" id="nSpec" placeholder="Nome da profissional"><button class="btn sm" id="addPro">Adicionar</button></div>
+  </div>
+  <div class="card"><h2>Agendamentos</h2><div id="appts"></div></div>
+  <div style="text-align:center;margin-top:16px"><button class="btn sm ghost" id="logout">Sair do painel</button></div>
+</section>
+
+<footer><button id="adminLink">Área da profissional</button></footer>
+
+<div class="card" id="login" hidden><h2>Entrar</h2>
+  <input type="email" id="lEmail" placeholder="E-mail" autocomplete="username">
+  <input type="password" id="lPass" placeholder="Senha" autocomplete="current-password">
+  <button class="btn" id="doLogin">Entrar</button><div class="msg" id="loginMsg" hidden></div>
+</div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = n => Number(n || 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+const digits = s => String(s).replace(/\D/g, '');
+let db, settings = {}, pros = [], services = [], curPro = null, curTime = null, isAdmin = false;
+
+(async function init(){
+  if (SUPABASE_URL.startsWith('COLE')) { $('salonName').textContent = 'Falta configurar'; $('tagline').textContent = 'Cole a URL e a chave do Supabase no começo do arquivo.'; return; }
+  db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const { data:{ session } } = await db.auth.getSession();
+  isAdmin = !!session;
+  await load();
+  $('date').min = new Date().toISOString().slice(0,10);
+  if (isAdmin) showAdmin();
+})();
+
+async function load(){
+  const [s, p, sv] = await Promise.all([
+    db.from('settings').select('*').eq('id',1).single(),
+    db.from('professionals').select('*').order('created_at'),
+    db.from('services').select('*').order('name')]);
+  settings = s.data || {}; pros = p.data || []; services = sv.data || [];
+  $('salonName').textContent = settings.name || 'Agendamento';
+  document.title = settings.name || 'Agendamento';
+  $('tagline').textContent = settings.tagline || '';
+  if (!pros.find(x => x.id === curPro)) curPro = pros[0]?.id || null;
+  renderTabs(); renderServices();
+  if (isAdmin) renderAdmin();
+}
+
+function renderTabs(){
+  $('empty').hidden = pros.length > 0;
+  $('booking').hidden = !curPro;
+  $('tabs').innerHTML = pros.map(p => `<button class="tab" role="tab" aria-selected="${p.id===curPro}" data-id="${p.id}">${esc(p.name)}${p.specialty?`<small>${esc(p.specialty)}</small>`:''}</button>`).join('');
+  $('tabs').querySelectorAll('.tab').forEach(b => b.onclick = () => { curPro = b.dataset.id; curTime = null; renderTabs(); renderServices(); loadSlots(); });
+}
+function renderServices(){
+  const list = services.filter(s => s.professional_id === curPro);
+  $('services').innerHTML = list.length ? list.map((s,i) => `<label class="opt"><input type="radio" name="svc" value="${esc(s.name)}" ${i===0?'checked':''}><span>${esc(s.name)}</span><span class="price">${money(s.price)}</span></label>`).join('') : '<p class="muted">Nenhum serviço cadastrado para esta aba.</p>';
+}
+
+async function loadSlots(){
+  const d = $('date').value;
+  if (!d || !curPro) { $('slots').innerHTML = '<p class="muted">Escolha uma data.</p>'; return; }
+  const { data } = await db.rpc('busy_times', { p: curPro, d });
+  const busy = new Set((data || []).map(r => r.t));
+  const [oh, om] = (settings.open_time || '09:00').split(':').map(Number), [ch, cm] = (settings.close_time || '18:00').split(':').map(Number);
+  const out = [];
+  for (let m = oh*60+om; m < ch*60+cm; m += 60) {
+    const t = String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+    const past = d === new Date().toISOString().slice(0,10) && m <= new Date().getHours()*60 + new Date().getMinutes();
+    out.push(`<button class="slot" aria-pressed="${t===curTime}" data-t="${t}" ${busy.has(t)||past?'disabled':''}>${t}</button>`);
+  }
+  $('slots').innerHTML = out.join('');
+  $('slots').querySelectorAll('.slot').forEach(b => b.onclick = () => { curTime = b.dataset.t; $('slots').querySelectorAll('.slot').forEach(x => x.setAttribute('aria-pressed', x === b)); });
+}
+$('date').onchange = () => { curTime = null; loadSlots(); };
+
+function note(el, text){ el.textContent = text; el.hidden = false; }
+$('send').onclick = async () => {
+  const name = $('cname').value.trim(), phone = digits($('cphone').value), date = $('date').value;
+  const svc = document.querySelector('input[name=svc]:checked')?.value;
+  if (!svc) return note($('clientMsg'), 'Escolha um serviço.');
+  if (!date || !curTime) return note($('clientMsg'), 'Escolha o dia e o horário.');
+  if (!name || phone.length < 10) return note($('clientMsg'), 'Preencha seu nome e WhatsApp com DDD.');
+  const pro = pros.find(p => p.id === curPro);
+  const { error } = await db.from('appointments').insert({ professional_id: curPro, service_name: svc, client_name: name, client_phone: phone, date, time: curTime });
+  if (error) return note($('clientMsg'), error.code === '23505' ? 'Esse horário acabou de ser reservado. Escolha outro.' : 'Não foi possível agendar. Tente de novo.');
+  const dt = date.split('-').reverse().join('/');
+  const text = `Olá! Quero agendar:\n${svc} com ${pro.name}\n${dt} às ${curTime}\nNome: ${name}`;
+  note($('clientMsg'), 'Pedido enviado! Abrindo o WhatsApp para você confirmar com o salão.');
+  curTime = null; loadSlots();
+  window.open(`https://wa.me/${digits(settings.whatsapp)}?text=${encodeURIComponent(text)}`, '_blank');
+};
+
+/* ---------- Área da profissional ---------- */
+$('adminLink').onclick = () => { if (!db) return; isAdmin ? showAdmin() : ($('login').hidden = false, $('lEmail').focus()); };
+$('doLogin').onclick = async () => {
+  const { error } = await db.auth.signInWithPassword({ email: $('lEmail').value.trim(), password: $('lPass').value });
+  if (error) return note($('loginMsg'), 'E-mail ou senha incorretos.');
+  isAdmin = true; $('login').hidden = true; await load(); showAdmin();
+};
+$('logout').onclick = async () => { await db.auth.signOut(); isAdmin = false; $('admin').hidden = true; $('client').hidden = false; };
+function showAdmin(){ $('client').hidden = true; $('admin').hidden = false; renderAdmin(); loadAppts(); window.scrollTo(0,0); }
+
+function renderAdmin(){
+  $('sName').value = settings.name || ''; $('sTag').value = settings.tagline || ''; $('sWa').value = settings.whatsapp || '';
+  $('sOpen').value = settings.open_time || '09:00'; $('sClose').value = settings.close_time || '18:00';
+  $('adminPros').innerHTML = pros.map(p => `<div class="appt"><div class="row"><strong>${esc(p.name)}${p.specialty?' · '+esc(p.specialty):''}</strong><button class="btn sm ghost" data-delpro="${p.id}">Remover aba</button></div>
+    ${services.filter(s=>s.professional_id===p.id).map(s=>`<div class="row"><span>${esc(s.name)} <span class="price">${money(s.price)}</span></span><button class="btn sm ghost" data-delsvc="${s.id}">Remover</button></div>`).join('')}
+    <div class="row"><input type="text" placeholder="Novo serviço" data-sn="${p.id}"><input type="number" min="0" step="0.01" placeholder="Preço" data-sp="${p.id}"><button class="btn sm" data-addsvc="${p.id}">Adicionar</button></div></div>`).join('');
+  $('adminPros').querySelectorAll('[data-delpro]').forEach(b => b.onclick = async () => { if (confirm('Remover esta aba e seus serviços?')) { await db.from('professionals').delete().eq('id', b.dataset.delpro); await load(); } });
+  $('adminPros').querySelectorAll('[data-delsvc]').forEach(b => b.onclick = async () => { await db.from('services').delete().eq('id', b.dataset.delsvc); await load(); });
+  $('adminPros').querySelectorAll('[data-addsvc]').forEach(b => b.onclick = async () => {
+    const id = b.dataset.addsvc, n = document.querySelector(`[data-sn="${id}"]`).value.trim(), pr = document.querySelector(`[data-sp="${id}"]`).value;
+    if (n) { await db.from('services').insert({ professional_id: id, name: n, price: pr || 0 }); await load(); }
+  });
+}
+$('saveSettings').onclick = async () => {
+  await db.from('settings').update({ name: $('sName').value, tagline: $('sTag').value, whatsapp: digits($('sWa').value), open_time: $('sOpen').value, close_time: $('sClose').value }).eq('id', 1);
+  await load(); $('saveSettings').textContent = 'Salvo!'; setTimeout(() => $('saveSettings').textContent = 'Salvar', 1500);
+};
+$('addPro').onclick = async () => {
+  const name = $('nPro').value.trim(); if (!name) return;
+  await db.from('professionals').insert({ name, specialty: $('nSpec').value.trim() });
+  $('nPro').value = $('nSpec').value = ''; await load();
+};
+
+async function loadAppts(){
+  const { data } = await db.from('appointments').select('*, professionals(name)').gte('date', new Date().toISOString().slice(0,10)).order('date').order('time');
+  $('appts').innerHTML = (data || []).length ? data.map(a => `<div class="appt"><div class="row"><strong>${a.date.split('-').reverse().join('/')} · ${esc(a.time)}</strong><span class="tag ${esc(a.status)}">${esc(a.status)}</span></div>
+    <div>${esc(a.client_name)} · ${esc(a.service_name)} com ${esc(a.professionals?.name)}</div>
+    <div class="row" style="margin-top:8px"><button class="btn sm ok" data-ok="${a.id}">Confirmar no WhatsApp</button><button class="btn sm ghost" data-no="${a.id}">Cancelar</button></div></div>`).join('') : '<p class="muted">Nenhum agendamento futuro.</p>';
+  $('appts').querySelectorAll('[data-ok]').forEach(b => b.onclick = async () => {
+    const a = data.find(x => x.id === b.dataset.ok);
+    await db.from('appointments').update({ status: 'confirmado' }).eq('id', a.id);
+    const text = `Olá, ${a.client_name}! Seu horário está confirmado: ${a.service_name} com ${a.professionals?.name}, dia ${a.date.split('-').reverse().join('/')} às ${a.time}. Te esperamos!`;
+    const ph = digits(a.client_phone);
+    window.open(`https://wa.me/${ph.startsWith('55') ? ph : '55' + ph}?text=${encodeURIComponent(text)}`, '_blank');
+    loadAppts();
+  });
+  $('appts').querySelectorAll('[data-no]').forEach(b => b.onclick = async () => { await db.from('appointments').update({ status: 'cancelado' }).eq('id', b.dataset.no); loadAppts(); });
+}
+</script>
+</body>
+</html>
